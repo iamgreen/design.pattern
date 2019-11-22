@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title></title>
+</head>
+
+<body>
+    <script type="text/javascript" src="./underscore-min.js"></script>
+    <script type="text/javascript">
+    window._ = _ || {};
+    // 全局可能用到的变量
+    var arr = [];
+    var slice = arr.slice;
+    /**
+     * inherit方法，js的继承，默认为两个参数
+     *
+     * @param  {function} origin  可选，要继承的类
+     * @param  {object}   methods 被创建类的成员，扩展的方法和属性
+     * @return {function}         继承之后的子类
+     */
+    _.inherit = function(origin, methods) {
+
+        // 参数检测，该继承方法，只支持一个参数创建类，或者两个参数继承类
+        if (arguments.length === 0 || arguments.length > 2) throw '参数错误';
+
+        var parent = null;
+
+        // 将参数转换为数组
+        var properties = slice.call(arguments);
+
+        // 如果第一个参数为类（function），那么就将之取出
+        if (typeof properties[0] === 'function')
+            parent = properties.shift();
+        properties = properties[0];
+
+        // 创建新类用于返回
+        function klass() {
+            if (_.isFunction(this.initialize))
+                this.initialize.apply(this, arguments);
+        }
+
+        klass.superclass = parent;
+
+        // 父类的方法不做保留，直接赋给子类
+        // parent.subclasses = [];
+
+        if (parent) {
+            // 中间过渡类，防止parent的构造函数被执行
+            var subclass = function() {};
+            subclass.prototype = parent.prototype;
+            klass.prototype = new subclass();
+
+            // 父类的方法不做保留，直接赋给子类
+            // parent.subclasses.push(klass);
+        }
+
+        var ancestor = klass.superclass && klass.superclass.prototype;
+        for (var k in properties) {
+            var value = properties[k];
+
+            //满足条件就重写
+            if (ancestor && typeof value == 'function') {
+                var argslist = /^\s*function\s*\(([^\(\)]*?)\)\s*?\{/i.exec(value.toString())[1].replace(/\s/i, '').split(',');
+                //只有在第一个参数为$super情况下才需要处理（是否具有重复方法需要用户自己决定）
+                if (argslist[0] === '$super' && ancestor[k]) {
+                    value = (function(methodName, fn) {
+                        return function() {
+                            var scope = this;
+                            var args = [
+                                function() {
+                                    return ancestor[methodName].apply(scope, arguments);
+                                }
+                            ];
+                            return fn.apply(this, args.concat(slice.call(arguments)));
+                        };
+                    })(k, value);
+                }
+            }
+
+            //此处对对象进行扩展，当前原型链已经存在该对象，便进行扩展
+            if (_.isObject(klass.prototype[k]) && _.isObject(value) && (typeof klass.prototype[k] != 'function' && typeof value != 'fuction')) {
+                //原型链是共享的，这里处理逻辑要改
+                var temp = {};
+                _.extend(temp, klass.prototype[k]);
+                _.extend(temp, value);
+                klass.prototype[k] = temp;
+            } else {
+                klass.prototype[k] = value;
+            }
+
+        }
+
+        if (!klass.prototype.initialize)
+            klass.prototype.initialize = function() {};
+
+        klass.prototype.constructor = klass;
+
+        return klass;
+    };
+
+
+
+    var Person = _.inherit({
+        initialize: function(opts) {
+            this.setOpts(opts);
+        },
+
+        setOpts: function(opts) {
+            for (var k in opts) {
+                this[k] = opts[k];
+            }
+        },
+
+        getName: function() {
+            return this.name;
+        },
+
+        setName: function(name) {
+            this.name = name
+        }
+    });
+
+    var Man = _.inherit(Person, {
+        initialize: function($super, opts) {
+            $super(opts);
+            this.sex = 'man';
+        },
+
+        getSex: function() {
+            return this.sex;
+        }
+    });
+
+    var Woman = _.inherit(Person, {
+        initialize: function($super, opts) {
+            $super(opts);
+            this.sex = 'women';
+        },
+
+        getSex: function() {
+            return this.sex;
+        }
+    });
+
+    var xiaoming = new Man({
+        name: '小明'
+    });
+
+    var xiaohong = new Woman({
+        name: '小红'
+    });
+
+
+    console.log(xiaoming.getName());
+    // "小明"
+    console.log(xiaohong.getName());
+    // "小红"
+    console.log(xiaoming.getSex());
+    // "man"
+    console.log(xiaohong.getSex());
+    // "women"
+
+
+    // 单例优化前
+    //唯一标识，一般在amd模块中
+    var instance = null;
+
+    //js不存在多线程，这里是安全的
+    var UIAlert = _.inherit({
+        initialize: function(msg) {
+            this.msg = msg;
+        },
+        setMsg: function(msg) {
+            this.msg = msg;
+        },
+        showMessage: function() {
+            console.log(this.msg);
+        }
+    });
+
+    var m1 = new UIAlert('1');
+    m1.showMessage(); //1
+    var m2 = new UIAlert('2');
+    m2.showMessage(); //2
+    m1.showMessage(); //1
+
+    // 单例优化后
+
+    //唯一标识，一般在amd模块中
+    var instance = null;
+
+    //js不存在多线程，这里是安全的
+    var UIAlert = _.inherit({
+        initialize: function(msg) {
+            this.msg = msg;
+        },
+        setMsg: function(msg) {
+            this.msg = msg;
+        },
+        showMessage: function() {
+            console.log(this.msg);
+        }
+    });
+    UIAlert.getInstance = function() {
+        if (instance instanceof this) {
+            return instance;
+        } else {
+            return instance = new UIAlert(); //new this
+        }
+    }
+
+    var m1 = UIAlert.getInstance();
+    m1.setMsg(1);
+    m1.showMessage(); //1
+    var m2 = UIAlert.getInstance();
+    m2.setMsg(2);
+    m2.showMessage(); //2
+    m1.showMessage(); //2
+
+    // 工厂模式
+    var AbstractView = _.inherit({
+        initialize: function() {
+            this.wrapper = $('body');
+            //事件管道，实例化时触发onCreate，show时候触发onShow......
+            this.eventsArr = [];
+        },
+        show: function() {},
+        hide: function() {}
+    });
+    var SinaView = _.inherit(AbstractView, {});
+    var BaiduView = _.inherit(AbstractView, {});
+
+
+
+
+    // 桥接模式(bridge)
+    var AbstractView = _.inherit({
+        initialize: function() {
+            //这里的dom其实应该由template于data组成，这里简化
+            this.$el = $('<div style="display: none; position: absolute; left: 100px; top: 100px; border: 1px solid #000000;">组件</div>');
+            this.$wrapper = $('body');
+            this.animatIns = null;
+        },
+        show: function() {
+            this.$wrapper.append(this.$el);
+            if (!this.animatIns) {
+                this.$el.show();
+            } else {
+                this.animatIns.animate(this.$el, function() {});
+            }
+            //this.bindEvents();
+        }
+    });
+
+    var AbstractAnimate = _.inherit({
+        initialize: function() {},
+        //override
+        animate: function(el, callback) {
+            el.show();
+            callback();
+        }
+    });
+
+
+    var UPToDwonAnimate = _.inherit(AbstractAnimate, {
+        animate: function(el, callback) {
+            //动画具体实现不予关注，这里使用zepto实现
+            el.animate({
+                'transform': 'translate(0, -250%)'
+            }).show().animate({
+                'transform': 'translate(0, 0)'
+            }, 200, 'ease-in-out', callback);
+        }
+    });
+
+
+    var UIAlert = _.inherit(AbstractView, {
+        initialize: function($super, animateIns) {
+            $super();
+            this.$el = $('<div style="display: none; position: absolute; left: 100px; top: 200px; border: 1px solid #000000;">alert组件</div>');
+            this.animatIns = animateIns;
+        }
+    });
+
+    var UIToast = _.inherit(AbstractView, {
+        initialize: function($super, animateIns) {
+            $super();
+            this.animatIns = animateIns;
+        }
+    });
+
+    var t = new UIToast(new UPToDwonAnimate);
+    t.show();
+
+    var a = new UIAlert();
+    a.show();
+
+    // 组合模式(composite):组合模式是前端比较常用的一个模式，目的是解耦复杂程序的内部结构，更业务一点便是将一个复杂组件分成多个小组件，最后保持使用时单个对象和组合对象具有一致性。
+
+    var AbstractView = _.inherit({
+        initialize: function() {
+            this.wrapper = 'body'
+            this.name = '抽象类';
+        },
+        show: function() {
+            console.log('在' + this.wrapper + '中，显示组件：' + this.name);
+        }
+    });
+
+    //select组件，事实上基础渲染的工作抽象类应该全部做掉
+    var UISelect = _.inherit(AbstractView, {
+        initialize: function($super) {
+            $super();
+            this.name = 'select组件'
+            //        this.id = '';
+            //        this.value = '';
+            //当前选项
+            this.index = 0;
+            //事实上会根据此数据生产完整组件
+            this.data = [];
+            this.name = 'select组件';
+        }
+    });
+
+    var UILayerContainer = _.inherit(AbstractView, {
+        initialize: function($super) {
+            $super();
+            this.name = 'select容器'
+            this.selectArr = [];
+        },
+        add: function(select) {
+            if (select instanceof UISelect) this.selectArr.push(select);
+        }, //增加一项
+        remove: function(select) {}, //移除一项
+        //容器组件显示的同时，需要将包含对象显示
+        show: function($super) {
+            $super();
+            for (var i = 0, len = this.selectArr.length; i < len; i++) {
+                this.selectArr[i].wrapper = this.name;
+                this.selectArr[i].show();
+            }
+        }
+    });
+
+    var s1 = new UISelect();
+    var s2 = new UISelect();
+
+    var c = new UILayerContainer();
+    c.add(s1);
+    c.add(s2);
+
+    c.show();
+    /*
+     在body中，显示组件：select容器 01.html:113
+     在select容器中，显示组件：select组件
+     在select容器中，显示组件：select组件
+     */
+
+    // 适配器模式(adapter)
+    var UILoading = _.inherit({
+        initialize: function() {
+            console.log('初始化loading组件dom结构')
+        },
+        show: function() {
+            console.log('显示loading组件');
+        }
+    });
+
+    var EmotionLoading = function() {
+        console.log('初始化情感化组件');
+    };
+    EmotionLoading.prototype.init = function() {
+        console.log('显示情感化组件');
+    };
+
+    var LoadingAdapter = _.inherit(UILoading, {
+        initialize: function(loading) {
+            this.loading = loading;
+        },
+        show: function() {
+            this.loading.init();
+        }
+    })
+
+    var l1 = new UILoading();
+    l1.show();
+
+    var l2 = new LoadingAdapter(new EmotionLoading());
+    l2.show();
+
+    /*
+     初始化loading组件dom结构 01.html:110
+     显示loading组件 01.html:113
+     初始化情感化组件 01.html:118
+     显示情感化组件 
+     */
+
+
+    //代理模式(proxy)
+    var parent = $('#parent');
+    for (var i = 0; i < 10; i++) {
+        parent.append($('<input type="button" value="按钮_' + i + '" >'));
+    }
+
+    function itemFn() {
+        console.log(this.val());
+    }
+    parent.on('click', function(e) {
+        var el = $(e.target);
+        itemFn.call(el);
+    });
+    </script>
+</body>
+
+</html>

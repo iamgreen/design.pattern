@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title></title>
+</head>
+
+<body>
+    <script type="text/javascript">
+    var fsm = StateMachine.create({
+        initial: 'green',
+        events: [
+            { name: 'warn', from: 'green', to: 'yellow' },
+            { name: 'panic', from: 'yellow', to: 'red' },
+            { name: 'calm', from: 'red', to: 'yellow' },
+            { name: 'clear', from: 'yellow', to: 'green' }
+        ],
+        callbacks: {
+            onpanic: function(event, from, to, msg) { alert('panic! ' + msg); },
+            onclear: function(event, from, to, msg) { alert('thanks to ' + msg); },
+            ongreen: function(event, from, to) { document.body.className = 'green'; },
+            onyellow: function(event, from, to) { document.body.className = 'yellow'; },
+            onred: function(event, from, to) { document.body.className = 'red'; },
+        }
+    });
+
+    fsm.panic('killer bees');
+    fsm.clear('sedatives in the honey pots');
+
+
+
+
+    var fsm = StateMachine.create({
+
+                initial: 'menu',
+
+                events: [
+                    { name: 'play', from: 'menu', to: 'game' },
+                    { name: 'quit', from: 'game', to: 'menu' }
+                ],
+
+                callbacks: {
+
+                    onentermenu: function() { $('#menu').show(); },
+                    onentergame: function() { $('#game').show(); },
+
+                    onleavemenu: function() {
+                        $('#menu').fadeOut('fast', function() {
+                            fsm.transition();
+                        });
+                        return StateMachine.ASYNC; // tell StateMachine to defer next state until we call transition (in fadeOut callback above)
+                    },
+
+                    onleavegame: function() {
+                        $('#game').slideDown('slow', function() {
+                                fsm.transition();
+                            };
+                            return StateMachine.ASYNC; // tell StateMachine to defer next state until we call transition (in slideDown callback above)
+                        }
+
+                    }
+                });
+    </script>
+</body>
+
+</html>

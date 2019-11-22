@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title></title>
+</head>
+
+<body>
+    <script type="text/javascript">
+    var duck = {
+        duckSinging: function() {
+            console.log('gagaga');
+        }
+    };
+    var chicken = {
+        duckSinging: function() {
+            console.log('gogogo');
+        }
+    };
+    var choir = []; // 合唱团
+
+    var joinChoir = function(animal) {
+        if (animal && typeof animal.duckSinging === 'function') {
+            choir.push(animal);
+            console.log('welcome join');
+            console.log('length:' + choir.length);
+        }
+    };
+
+    joinChoir(duck);
+    joinChoir(chicken);
+    </script>
+</body>
+
+</html>
